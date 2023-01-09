@@ -1,46 +1,46 @@
 #include "Base64.h"
 #include "Utils.h"
 
-// Å×¼­·¢Æ® OCR ÀÌ¿ëÀ» À§ÇÑ Çì´õ Ãß°¡
+// í…Œì„œë™íŠ¸ OCR ì´ìš©ì„ ìœ„í•œ í—¤ë” ì¶”ê°€
 #include <leptonica/allheaders.h>
 #include <tesseract/baseapi.h>
-#include <cpr/cpr.h> // CURLÀ» ÀÌ¿ëÇÑ °¡º­¿î HTTP POST GET ¶óÀÌºê·¯¸®
+#include <cpr/cpr.h> // CURLì„ ì´ìš©í•œ ê°€ë²¼ìš´ HTTP POST GET ë¼ì´ë¸ŒëŸ¬ë¦¬
 #include <nlohmann/json.hpp> // JSON
 #include <opencv2/opencv.hpp> // OpenCV
 
-namespace json = nlohmann; // json ¶óÀÌºê·¯¸®Áß °¡Àå ¼º´ÉÁÁ´Ù°í »ı°¢ÇÏ´Â nlohmann ¶óÀÌºê·¯¸®¸¦ »ç¿ëÇÏ°Ú½À´Ï´Ù.
-//tesseract::TessBaseAPI* api = new tesseract::TessBaseAPI(); // Å×¼­·ºÆ® API »ç¿ë Å¬·¡½º Á¤ÀÇ
+namespace json = nlohmann; // json ë¼ì´ë¸ŒëŸ¬ë¦¬ì¤‘ ê°€ì¥ ì„±ëŠ¥ì¢‹ë‹¤ê³  ìƒê°í•˜ëŠ” nlohmann ë¼ì´ë¸ŒëŸ¬ë¦¬ë¥¼ ì‚¬ìš©í•˜ê² ìŠµë‹ˆë‹¤.
+//tesseract::TessBaseAPI* api = new tesseract::TessBaseAPI(); // í…Œì„œë ‰íŠ¸ API ì‚¬ìš© í´ë˜ìŠ¤ ì •ì˜
 
-// OCR ¹æ½Ä
-//#define TESSERACT_AND_OPENCV_METHOD // ÁÖ¼® Ç®½Ã Å×¼­·¢Æ®+OpenCV, ÁÖ¼®½Ã Å¬·Î¹Ù OCR REST API »ç¿ë
-// ÇÑ±Û OCRÀº Å¬·Î¹Ù°¡ ¾ĞµµÀûÀ¸·Î Àß ÀĞ½À´Ï´Ù. ( ºÎºĞÀ¯·á )
-// 2006³âºÎÅÍ °³¹ßµÈ °¡Àå À¯¸íÇÑ ¿ÀÇÂ¼Ò½º OCR ¶óÀÌºê·¯¸® -> ÅÂ¼­·¢Æ® : ÇÑ±ÛÀĞ±â Á» ºı¼À ( ¹«·á )
+// OCR ë°©ì‹
+//#define TESSERACT_AND_OPENCV_METHOD // ì£¼ì„ í’€ì‹œ í…Œì„œë™íŠ¸+OpenCV, ì£¼ì„ì‹œ í´ë¡œë°” OCR REST API ì‚¬ìš©
+// í•œê¸€ OCRì€ í´ë¡œë°”ê°€ ì••ë„ì ìœ¼ë¡œ ì˜ ì½ìŠµë‹ˆë‹¤. ( ë¶€ë¶„ìœ ë£Œ )
+// 2006ë…„ë¶€í„° ê°œë°œëœ ê°€ì¥ ìœ ëª…í•œ ì˜¤í”ˆì†ŒìŠ¤ OCR ë¼ì´ë¸ŒëŸ¬ë¦¬ -> íƒœì„œë™íŠ¸ : í•œê¸€ì½ê¸° ì¢€ ë¹¡ì…ˆ ( ë¬´ë£Œ )
 
 
-// »ç¿ëÀÚ°¡ ¼öÁ¤ÇØ¾ßÇÒ °Íµé
+// ì‚¬ìš©ìê°€ ìˆ˜ì •í•´ì•¼í•  ê²ƒë“¤
 // ***********************************************
 #define APIGW_INVOKE_URL "https://5hew6imuyh.apigw.ntruss.com/custom/v1/18892/4703a7e7e66f12451fce6c706327b3cbbcaa35e18b8d084cb3ff39486f84d8ea/general"
-#define X_OCR_SECRET_KEY "alBBZnlYeGFxZHJFenNKenFPUU9WV0N6Z2VmdkR2UXI="
+#define X_OCR_SECRET_KEY "ê°œì¸ ì‹œí¬ë¦¿í‚¤ëŠ” ë¹„ë°€ì…ë‹ˆë‹¤"
 // ***********************************************
 
 
 
-// OpenCV ÇÔ¼ö »ç¿ëÀ» À§ÇÑ Àü¿ªº¯¼öÀÔ´Ï´Ù.
+// OpenCV í•¨ìˆ˜ ì‚¬ìš©ì„ ìœ„í•œ ì „ì—­ë³€ìˆ˜ì…ë‹ˆë‹¤.
 int dilation_elem = 0;
 int dilation_size = 0;
 
 __declspec(dllexport) auto read_ocr_words(std::string image_path, std::string data_path) -> std::string {
 #ifdef TESSERACT_AND_OPENCV_METHOD
 
-    // Å×¼­·ºÆ® ÇÑ±¹¾î µ¥ÀÌÅÍ¸¦ Init, OEM ¼³Á¤À» tesseract::OcrEngineMode::OEM_TESSERACT_LSTM_COMBINED ·Î ÇÒ½Ã ÀÎ½Ä·ü Áõ°¡
-    // OEM_TESSERACT_LSTM_COMBINED ¾µ·Á¸é kor2 µ¥ÀÌÅÍ ÇÊ¿ä
+    // í…Œì„œë ‰íŠ¸ í•œêµ­ì–´ ë°ì´í„°ë¥¼ Init, OEM ì„¤ì •ì„ tesseract::OcrEngineMode::OEM_TESSERACT_LSTM_COMBINED ë¡œ í• ì‹œ ì¸ì‹ë¥  ì¦ê°€
+    // OEM_TESSERACT_LSTM_COMBINED ì“¸ë ¤ë©´ kor2 ë°ì´í„° í•„ìš”
     if (api->Init(data_path.c_str(), "kor2", tesseract::OcrEngineMode::OEM_TESSERACT_LSTM_COMBINED))
-        return "NO_INIT"; // ½ÇÆĞ½Ã ½ÇÆĞ¹®ÀÚ¿­ ¹İÈ¯
+        return "NO_INIT"; // ì‹¤íŒ¨ì‹œ ì‹¤íŒ¨ë¬¸ìì—´ ë°˜í™˜
 
-    // kor : ±âº» ¹®ÀÚµ¥ÀÌÅÍ
-    // kor2 : ÇÑ±ÛÀ» Á» ´õ ·¯´×ÇÑ µ¥ÀÌÅÍ
+    // kor : ê¸°ë³¸ ë¬¸ìë°ì´í„°
+    // kor2 : í•œê¸€ì„ ì¢€ ë” ëŸ¬ë‹í•œ ë°ì´í„°
 
-    //ÀÎ½Ä·üÀ» ³ôÀÌ±â À§ÇØ opencv·Î ÀÌ¹ÌÁö¸¦ ´Ùµë½À´Ï´Ù.
+    //ì¸ì‹ë¥ ì„ ë†’ì´ê¸° ìœ„í•´ opencvë¡œ ì´ë¯¸ì§€ë¥¼ ë‹¤ë“¬ìŠµë‹ˆë‹¤.
     cv::Mat im = cv::imread(image_path, cv::IMREAD_COLOR);
     cv::resize(im, im, cv::Size(0, 0), 2, 2);
     
@@ -64,31 +64,31 @@ __declspec(dllexport) auto read_ocr_words(std::string image_path, std::string da
     cv::GaussianBlur(newone, newone, cv::Size(7, 7), 1);
     api->SetImage(newone.data, newone.cols, newone.rows, 3, newone.step);
     
-    // ÀÌ¹ÌÁö µğ¹ö±×¿ë
+    // ì´ë¯¸ì§€ ë””ë²„ê·¸ìš©
     //cv::imshow("1", newone);
     //cv::waitKey(1);
 
-    return api->GetUTF8Text(); // Å×¼­·ºÆ® api»ç¿ëÇØ¼­ ÅØ½ºÆ® UTF8·Î ÀĞÀ½
+    return api->GetUTF8Text(); // í…Œì„œë ‰íŠ¸ apiì‚¬ìš©í•´ì„œ í…ìŠ¤íŠ¸ UTF8ë¡œ ì½ìŒ
 
-    // Å×¼­·¢Æ® ¶óÀÌºê·¯¸®¿¡ ³»ÀåµÈ ÀÌ¹ÌÁö ºÒ·¯¿À´Â±â´ÉÀÎµ¥ ÀÎ½Ä·üÀÌ ³·¾Æ¼­ »ç¿ë¾ÈÇÕ´Ï´Ù.
-    //Pix* image = pixRead(image_path.c_str()); // OCR ÀÌ¹ÌÁö Á¤ÀÇ ¹× ÀĞ±â
-    //api->SetImage(image); // OCR ÀÌ¹ÌÁö ¼³Á¤ 
+    // í…Œì„œë™íŠ¸ ë¼ì´ë¸ŒëŸ¬ë¦¬ì— ë‚´ì¥ëœ ì´ë¯¸ì§€ ë¶ˆëŸ¬ì˜¤ëŠ”ê¸°ëŠ¥ì¸ë° ì¸ì‹ë¥ ì´ ë‚®ì•„ì„œ ì‚¬ìš©ì•ˆí•©ë‹ˆë‹¤.
+    //Pix* image = pixRead(image_path.c_str()); // OCR ì´ë¯¸ì§€ ì •ì˜ ë° ì½ê¸°
+    //api->SetImage(image); // OCR ì´ë¯¸ì§€ ì„¤ì • 
 #else
-    // Å¬·Î¹Ù OCR
+    // í´ë¡œë°” OCR
     unsigned char* test;
     int size;
     Utils::ReadBufferData(image_path, &test, &size);
 
     json::json request_json;
-    request_json["lang"] = "ko"; // ÇÑ±¹¾î OCR
+    request_json["lang"] = "ko"; // í•œêµ­ì–´ OCR
     request_json["requestId"] = "string";
     request_json["resultType"] = "string";
-    request_json["timestamp"] = 0; // 0À¸·Î ÇØµµ ¹ŞÀ»¶© Á¦´ë·Î ¿È.
-    request_json["version"] = "V2"; // V1º¸´Ù´Â V2°¡ ´õ ÀÎ½Ä·üÀÌ ÁÁ°í ±¦Âú´Ù°í Å¬·Î¹Ù docs¿¡ ÀûÇôÁ®ÀÖ¾ú½À´Ï´ç. ¤·¤µ¤·
-    request_json["images"][0]["format"] = "jpg"; // ÀÌ¹ÌÁö Æ÷¸Ë png, jpg, jpeg, pdf Áö¿øÇÑ´Ù°í ÀûÇôÁ®ÀÖÀ½.
-    request_json["images"][0]["name"] = "medium"; // ÀÌ°Å´Â ÀÌ¹ÌÁö ÀÌ¸§ÀÎµ¥ ¾Æ¹«·¸°Ô³ª º¸³»¸éµÇ°Ú½À´Ï´Ù.
-    request_json["images"][0]["data"] = base64->base64_decode(base64->base64_encode(test, size)); // ³» ÄÄÇ»ÅÍ °æ·Î¿¡ ÀÖ´Â ÆÄÀÏ ¹ÙÀÌ³Ê¸® µ¥ÀÌÅÍ·Î ºÒ·¯¿Í¼­ base64·Î Àü¼Û.
-    //request_json["images"][0]["url"] = "https://imgur.com/PYWUoQI.jpg"; Url¿¡ ÀÖ´Â ÀÌ¹ÌÁö ÀÌ¿ëÇÒ¶§
+    request_json["timestamp"] = 0; // 0ìœ¼ë¡œ í•´ë„ ë°›ì„ë• ì œëŒ€ë¡œ ì˜´.
+    request_json["version"] = "V2"; // V1ë³´ë‹¤ëŠ” V2ê°€ ë” ì¸ì‹ë¥ ì´ ì¢‹ê³  ê´œì°®ë‹¤ê³  í´ë¡œë°” docsì— ì í˜€ì ¸ìˆì—ˆìŠµë‹ˆë‹¹. ã…‡ã……ã…‡
+    request_json["images"][0]["format"] = "jpg"; // ì´ë¯¸ì§€ í¬ë§· png, jpg, jpeg, pdf ì§€ì›í•œë‹¤ê³  ì í˜€ì ¸ìˆìŒ.
+    request_json["images"][0]["name"] = "medium"; // ì´ê±°ëŠ” ì´ë¯¸ì§€ ì´ë¦„ì¸ë° ì•„ë¬´ë ‡ê²Œë‚˜ ë³´ë‚´ë©´ë˜ê² ìŠµë‹ˆë‹¤.
+    request_json["images"][0]["data"] = base64->base64_decode(base64->base64_encode(test, size)); // ë‚´ ì»´í“¨í„° ê²½ë¡œì— ìˆëŠ” íŒŒì¼ ë°”ì´ë„ˆë¦¬ ë°ì´í„°ë¡œ ë¶ˆëŸ¬ì™€ì„œ base64ë¡œ ì „ì†¡.
+    //request_json["images"][0]["url"] = "https://imgur.com/PYWUoQI.jpg"; Urlì— ìˆëŠ” ì´ë¯¸ì§€ ì´ìš©í• ë•Œ
 
     //std::cout << request_json.dump() << std::endl;
 
@@ -114,13 +114,13 @@ __declspec(dllexport) auto read_ocr_words(std::string image_path, std::string da
     for (int i = 0; i < rs["images"][0]["fields"].size(); i++) {
         auto accurate = rs["images"][0]["fields"][i]["inferConfidence"].get<float>();
         if (accurate < 0.8f) {
-            //std::cout << "ÀÎ½Ä·üÀÌ ³ª¶ôÀÔ´Ï´Ù.\n" << std::endl;
+            //std::cout << "ì¸ì‹ë¥ ì´ ë‚˜ë½ì…ë‹ˆë‹¤.\n" << std::endl;
         }
 
         //std::cout << Utils::UTF8ToANSI(rs["images"][0]["fields"][i]["inferText"].get<std::string>().c_str()) << std::endl;
         result_word = result_word + " " + std::string(Utils::UTF8ToANSI(rs["images"][0]["fields"][i]["inferText"].get<std::string>().c_str()));
     }
-    //result_word.erase(std::remove(result_word.begin(), result_word.end(), '')); // Æ¯Á¤ ¹®ÀÚ »èÁ¦
+    //result_word.erase(std::remove(result_word.begin(), result_word.end(), '')); // íŠ¹ì • ë¬¸ì ì‚­ì œ
     //std::cout << result_word << std::endl;
 
     return result_word;
@@ -128,12 +128,12 @@ __declspec(dllexport) auto read_ocr_words(std::string image_path, std::string da
 }
 
 auto check_spacing_rule(std::string src) -> std::string {
-    // ¶ç¾î¾²±â °Ë»ç½ÃÀÛ
+    // ë„ì–´ì“°ê¸° ê²€ì‚¬ì‹œì‘
     auto spacing_rule = cpr::Post(
-        cpr::Url({ "http://nlp.kookmin.ac.kr/cgi-bin/asp.cgi" }), cpr::Payload{ {"Question", std::string(Utils::UTF8ToANSI(src.c_str())) } }); // ¼º´ÉÁÁÀº ºÎ»ê´ëÇĞ±³ ¸ÂÃã¹ı °Ë»ç±â »çÀÌÆ®¸¦ »ç¿ëÇÕ´Ï´Ù.
+        cpr::Url({ "http://nlp.kookmin.ac.kr/cgi-bin/asp.cgi" }), cpr::Payload{ {"Question", std::string(Utils::UTF8ToANSI(src.c_str())) } }); // ì„±ëŠ¥ì¢‹ì€ ë¶€ì‚°ëŒ€í•™êµ ë§ì¶¤ë²• ê²€ì‚¬ê¸° ì‚¬ì´íŠ¸ë¥¼ ì‚¬ìš©í•©ë‹ˆë‹¤.
 
-    std::size_t bp = spacing_rule.text.rfind("<b>Ãâ·Â"); // json ÇüÅÂ°¡ µÉ¶§±îÁö ¹®ÀÚ¿­À» Àß¶óÁİ´Ï´Ù 1
-    std::size_t ep = spacing_rule.text.rfind("</b></td>"); // json ÇüÅÂ°¡ µÉ¶§±îÁö ¹®ÀÚ¿­À» Àß¶óÁİ´Ï´Ù 2
+    std::size_t bp = spacing_rule.text.rfind("<b>ì¶œë ¥"); // json í˜•íƒœê°€ ë ë•Œê¹Œì§€ ë¬¸ìì—´ì„ ì˜ë¼ì¤ë‹ˆë‹¤ 1
+    std::size_t ep = spacing_rule.text.rfind("</b></td>"); // json í˜•íƒœê°€ ë ë•Œê¹Œì§€ ë¬¸ìì—´ì„ ì˜ë¼ì¤ë‹ˆë‹¤ 2
     return spacing_rule.text.substr(bp + 9, ep - bp - 9);
 }
 
@@ -146,46 +146,46 @@ __declspec(dllexport) auto check_matchumrule(std::string texts, bool debug_strin
 
         //std::cout << texts << std::endl;
 
-        // ¸ÂÃã¹ı°Ë»ç ½ÃÀÛ
+        // ë§ì¶¤ë²•ê²€ì‚¬ ì‹œì‘
         auto response = cpr::Post(
-            cpr::Url({ "http://164.125.7.61/speller/results" }), cpr::Parameters{ {"text1", std::string(Utils::ANSItoUTF8(texts.c_str())) } }); // ¼º´ÉÁÁÀº ºÎ»ê´ëÇĞ±³ ¸ÂÃã¹ı °Ë»ç±â »çÀÌÆ®¸¦ »ç¿ëÇÕ´Ï´Ù.
-        // ¸ÂÃã¹ı °Ë»çÇÒ¶§´Â UTF8·Î º¯È¯ÇØ¼­ ¹®ÀÚ¿­À» º¸³»Áà¾ßÇÕ´Ï´Ù.
+            cpr::Url({ "http://164.125.7.61/speller/results" }), cpr::Parameters{ {"text1", std::string(Utils::ANSItoUTF8(texts.c_str())) } }); // ì„±ëŠ¥ì¢‹ì€ ë¶€ì‚°ëŒ€í•™êµ ë§ì¶¤ë²• ê²€ì‚¬ê¸° ì‚¬ì´íŠ¸ë¥¼ ì‚¬ìš©í•©ë‹ˆë‹¤.
+        // ë§ì¶¤ë²• ê²€ì‚¬í• ë•ŒëŠ” UTF8ë¡œ ë³€í™˜í•´ì„œ ë¬¸ìì—´ì„ ë³´ë‚´ì¤˜ì•¼í•©ë‹ˆë‹¤.
 
         //std::cout << Utils::UTF8ToANSI(response.text.c_str()) << std::endl;
         if (response.status_code == cpr::status::HTTP_OK) { // HTTP REQUEST 200 - HTTP OK
-            if (std::string(Utils::UTF8ToANSI(response.text.c_str())).find("±â¼úÀû ÇÑ°è") != std::string::npos) { // ¿À·ù¸¦ Ã£Áö ¸øÇß´Ù¸é
-                std::cout << "¿À·ù¸¦ Ã£Áö ¸øÇß½À´Ï´Ù." << std::endl;
-                return true; // ¸ÂÃã¹ıÀÌ ¿Ã¹Ù¸§À» ¸®ÅÏÇÕ´Ï´Ù.
+            if (std::string(Utils::UTF8ToANSI(response.text.c_str())).find("ê¸°ìˆ ì  í•œê³„") != std::string::npos) { // ì˜¤ë¥˜ë¥¼ ì°¾ì§€ ëª»í–ˆë‹¤ë©´
+                std::cout << "ì˜¤ë¥˜ë¥¼ ì°¾ì§€ ëª»í–ˆìŠµë‹ˆë‹¤." << std::endl;
+                return true; // ë§ì¶¤ë²•ì´ ì˜¬ë°”ë¦„ì„ ë¦¬í„´í•©ë‹ˆë‹¤.
             }
             else {
-                std::size_t begin_pos = response.text.rfind("data = ["); // json ÇüÅÂ°¡ µÉ¶§±îÁö ¹®ÀÚ¿­À» Àß¶óÁİ´Ï´Ù 1
-                std::size_t end_pos = response.text.rfind("}];"); // json ÇüÅÂ°¡ µÉ¶§±îÁö ¹®ÀÚ¿­À» Àß¶óÁİ´Ï´Ù 2
-                auto temp_filename = response.text.substr(begin_pos, end_pos); // json ÇüÅÂ°¡ µÉ¶§±îÁö ¹®ÀÚ¿­À» Àß¶óÁİ´Ï´Ù 3
-                auto filename = temp_filename.substr(0, temp_filename.rfind("}];") - 8); // json ÇüÅÂ°¡ µÉ¶§±îÁö ¹®ÀÚ¿­À» Àß¶óÁİ´Ï´Ù 4
-                //std::cout << Utils::UTF8ToANSI(filename.c_str()) << std::endl; // Àß¶ó³½ json µ¥ÀÌÅÍ¸¦ Ãâ·ÂÇÕ´Ï´Ù.
+                std::size_t begin_pos = response.text.rfind("data = ["); // json í˜•íƒœê°€ ë ë•Œê¹Œì§€ ë¬¸ìì—´ì„ ì˜ë¼ì¤ë‹ˆë‹¤ 1
+                std::size_t end_pos = response.text.rfind("}];"); // json í˜•íƒœê°€ ë ë•Œê¹Œì§€ ë¬¸ìì—´ì„ ì˜ë¼ì¤ë‹ˆë‹¤ 2
+                auto temp_filename = response.text.substr(begin_pos, end_pos); // json í˜•íƒœê°€ ë ë•Œê¹Œì§€ ë¬¸ìì—´ì„ ì˜ë¼ì¤ë‹ˆë‹¤ 3
+                auto filename = temp_filename.substr(0, temp_filename.rfind("}];") - 8); // json í˜•íƒœê°€ ë ë•Œê¹Œì§€ ë¬¸ìì—´ì„ ì˜ë¼ì¤ë‹ˆë‹¤ 4
+                //std::cout << Utils::UTF8ToANSI(filename.c_str()) << std::endl; // ì˜ë¼ë‚¸ json ë°ì´í„°ë¥¼ ì¶œë ¥í•©ë‹ˆë‹¤.
 
                 /*
-                * Àß¶óÁø µ¥ÀÌÅÍ ¿¹½Ã
+                * ì˜ë¼ì§„ ë°ì´í„° ì˜ˆì‹œ
                 {
-                    "str":"·Ô¿¡ ¾¾°Ô Ç×ÆİÃÖ´Ù.",
+                    "str":"ë¡¯ì— ì”¨ê²Œ í•­í€ìµœë‹¤.",
                     "errInfo":
                     [
                         {
-                            "help":"Ã¶ÀÚ °Ë»ç¸¦ ÇØ º¸´Ï ÀÌ ¾îÀıÀº ºĞ¼®ÇÒ ¼ö ¾øÀ¸¹Ç·Î Æ²¸° ¸»·Î ÆÇ´ÜÇÏ¿´½À´Ï´Ù.ÈÄº¸ ¾îÀıÀº ÀÌ Ã¶ÀÚ°Ë»ç/±³Á¤±â¿¡¼­ ¶ç¾î¾²±â, ºÙ¿© ¾²±â, À½Àı´ëÄ¡¿Í °°Àº ±³Á¤¹æ¹ı¿¡ µû¶ó ¼öÁ¤ÇÑ °á°úÀÔ´Ï´Ù.ÈÄ º¸ ¾îÀı Áß ¼±ÅÃÇÏ½Ã°Å³ª ¿À·ù ¾îÀıÀ» ¼öÁ¤ÇÏ¿© ÁÖ½Ê½Ã¿À.* ´Ü, »çÀü¿¡ ¾ø´Â ´Ü¾îÀÌ°Å³ª »ç¿ëÀÚ°¡ ¿Ã¹Ù¸£´Ù°í ÆÇ´ÜÇÑ ¾îÀı¿¡ ´ë ÇØ¼­´Â Åë°úÇÏ¼¼¿ä!!","errorIdx":0,"correctMethod":1,"start":0,"errMsg":"","end":2,"orgStr":"·Ô¿¡","candWord":"·Ôµ¥|°÷¿¡|¿Ê¿¡|·Ï¿¡"},{"help":"¶æÀ¸·Î º¼ ¶§ ¹Ù¸£Áö ¾ÊÀº Ç¥ÇöÀÔ´Ï´Ù.","errorIdx":1,"correctMethod":2,"start":3,"errMsg":"","end":5,"orgStr":"¾¾°Ô","candWord":"½Î°Ô|¼¼°Ô|½Ã°Ô"},{"help":"Ã¶ÀÚ °Ë»ç¸¦ ÇØ º¸´Ï ÀÌ ¾îÀıÀº ºĞ¼®ÇÒ ¼ö ¾øÀ¸¹Ç·Î Æ²¸° ¸»·Î ÆÇ´ÜÇÏ ¿´½À´Ï´Ù.ÈÄº¸ ¾îÀıÀº ÀÌ Ã¶ÀÚ°Ë»ç/±³Á¤±â¿¡¼­ ¶ç¾î¾²±â, ºÙ¿© ¾²±â, À½Àı´ëÄ¡¿Í °°Àº ±³Á¤¹æ¹ı¿¡ µû¶ó ¼öÁ¤ÇÑ °á°úÀÔ´Ï´Ù.ÈÄº¸ ¾îÀı Áß ¼±ÅÃÇÏ½Ã°Å³ª ¿À·ù ¾îÀıÀ» ¼öÁ¤ÇÏ¿© ÁÖ½Ê½Ã¿À.* ´Ü, »çÀü¿¡ ¾ø´Â ´Ü¾îÀÌ°Å³ª »ç¿ëÀÚ°¡ ¿Ã¹Ù¸£´Ù°í ÆÇ´ÜÇÑ ¾îÀı¿¡ ´ëÇØ¼­´Â Åë°úÇÏ¼¼¿ä!!",
+                            "help":"ì² ì ê²€ì‚¬ë¥¼ í•´ ë³´ë‹ˆ ì´ ì–´ì ˆì€ ë¶„ì„í•  ìˆ˜ ì—†ìœ¼ë¯€ë¡œ í‹€ë¦° ë§ë¡œ íŒë‹¨í•˜ì˜€ìŠµë‹ˆë‹¤.í›„ë³´ ì–´ì ˆì€ ì´ ì² ìê²€ì‚¬/êµì •ê¸°ì—ì„œ ë„ì–´ì“°ê¸°, ë¶™ì—¬ ì“°ê¸°, ìŒì ˆëŒ€ì¹˜ì™€ ê°™ì€ êµì •ë°©ë²•ì— ë”°ë¼ ìˆ˜ì •í•œ ê²°ê³¼ì…ë‹ˆë‹¤.í›„ ë³´ ì–´ì ˆ ì¤‘ ì„ íƒí•˜ì‹œê±°ë‚˜ ì˜¤ë¥˜ ì–´ì ˆì„ ìˆ˜ì •í•˜ì—¬ ì£¼ì‹­ì‹œì˜¤.* ë‹¨, ì‚¬ì „ì— ì—†ëŠ” ë‹¨ì–´ì´ê±°ë‚˜ ì‚¬ìš©ìê°€ ì˜¬ë°”ë¥´ë‹¤ê³  íŒë‹¨í•œ ì–´ì ˆì— ëŒ€ í•´ì„œëŠ” í†µê³¼í•˜ì„¸ìš”!!","errorIdx":0,"correctMethod":1,"start":0,"errMsg":"","end":2,"orgStr":"ë¡¯ì—","candWord":"ë¡¯ë°|ê³³ì—|ì˜·ì—|ë¡ì—"},{"help":"ëœ»ìœ¼ë¡œ ë³¼ ë•Œ ë°”ë¥´ì§€ ì•Šì€ í‘œí˜„ì…ë‹ˆë‹¤.","errorIdx":1,"correctMethod":2,"start":3,"errMsg":"","end":5,"orgStr":"ì”¨ê²Œ","candWord":"ì‹¸ê²Œ|ì„¸ê²Œ|ì‹œê²Œ"},{"help":"ì² ì ê²€ì‚¬ë¥¼ í•´ ë³´ë‹ˆ ì´ ì–´ì ˆì€ ë¶„ì„í•  ìˆ˜ ì—†ìœ¼ë¯€ë¡œ í‹€ë¦° ë§ë¡œ íŒë‹¨í•˜ ì˜€ìŠµë‹ˆë‹¤.í›„ë³´ ì–´ì ˆì€ ì´ ì² ìê²€ì‚¬/êµì •ê¸°ì—ì„œ ë„ì–´ì“°ê¸°, ë¶™ì—¬ ì“°ê¸°, ìŒì ˆëŒ€ì¹˜ì™€ ê°™ì€ êµì •ë°©ë²•ì— ë”°ë¼ ìˆ˜ì •í•œ ê²°ê³¼ì…ë‹ˆë‹¤.í›„ë³´ ì–´ì ˆ ì¤‘ ì„ íƒí•˜ì‹œê±°ë‚˜ ì˜¤ë¥˜ ì–´ì ˆì„ ìˆ˜ì •í•˜ì—¬ ì£¼ì‹­ì‹œì˜¤.* ë‹¨, ì‚¬ì „ì— ì—†ëŠ” ë‹¨ì–´ì´ê±°ë‚˜ ì‚¬ìš©ìê°€ ì˜¬ë°”ë¥´ë‹¤ê³  íŒë‹¨í•œ ì–´ì ˆì— ëŒ€í•´ì„œëŠ” í†µê³¼í•˜ì„¸ìš”!!",
                             "errorIdx":2,
                             "correctMethod":1,
                             "start":6,
                             "errMsg":"",
                             "end":10,
-                            "orgStr":"Ç×ÆİÃÖ´Ù",
-                            "candWord":"Ç× Æí ÃÖ ´Ù"
+                            "orgStr":"í•­í€ìµœë‹¤",
+                            "candWord":"í•­ í¸ ìµœ ë‹¤"
                         }
                     ],
                     "idx":0
                 }
                 */
 
-                //auto parse_json = json::json::parse(response.text); // º»°İÀûÀ¸·Î Àß¶ó³½ µ¥ÀÌÅÍ¸¦ nlohmann json À¸·Î ¸¸µì´Ï´Ù.
+                //auto parse_json = json::json::parse(response.text); // ë³¸ê²©ì ìœ¼ë¡œ ì˜ë¼ë‚¸ ë°ì´í„°ë¥¼ nlohmann json ìœ¼ë¡œ ë§Œë“­ë‹ˆë‹¤.
                 //auto origin = parse_json["errorInfo"]["errorIdx"].get<int>();
                 //std::cout << "origin: " << origin << std::endl;
                 //auto candWord = parse_json["errorInfo"][0]["candWord"].get<std::string>();
@@ -193,23 +193,23 @@ __declspec(dllexport) auto check_matchumrule(std::string texts, bool debug_strin
                 //std::cout << "origin: " << origin << std::endl;
                 //std::cout << "canword: " << candWord << std::endl;
                 //
-                //origin.erase(std::remove(origin.begin(), origin.end(), ' '), origin.end()); // ½ºÆäÀÌ½º¹Ù »èÁ¦
-                //candWord.erase(std::remove(candWord.begin(), candWord.end(), ' '), candWord.end()); // ½ºÆäÀÌ½º¹Ù »èÁ¦
+                //origin.erase(std::remove(origin.begin(), origin.end(), ' '), origin.end()); // ìŠ¤í˜ì´ìŠ¤ë°” ì‚­ì œ
+                //candWord.erase(std::remove(candWord.begin(), candWord.end(), ' '), candWord.end()); // ìŠ¤í˜ì´ìŠ¤ë°” ì‚­ì œ
                 //
                 //if (origin.compare(candWord.c_str()) == 0) {
-                //    std::cout << "´ëÄ¡¾î°¡ °°½À´Ï´Ù" << std::endl;
+                //    std::cout << "ëŒ€ì¹˜ì–´ê°€ ê°™ìŠµë‹ˆë‹¤" << std::endl;
                 //    return true;
                 //}
                 return false;
             }
         }
         else {
-            std::cout << "POST ½ÇÆĞ. ¿À·ùÄÚµå : " << response.status_code << std::endl;
+            std::cout << "POST ì‹¤íŒ¨. ì˜¤ë¥˜ì½”ë“œ : " << response.status_code << std::endl;
             return false;
         }
     }
     catch (...) {
-        printf("¸ÂÃã¹ı °Ë»ç ¿¹¿Ü¹ß»ı\n");
+        printf("ë§ì¶¤ë²• ê²€ì‚¬ ì˜ˆì™¸ë°œìƒ\n");
     }
 }
 
@@ -225,11 +225,11 @@ auto main(void) ->int {
         std::cout << "[ " << simple_str << " ]" << Utils::UTF8ToANSI(ocr_texts.c_str()) << std::endl;
         if (check_matchumrule(ocr_texts, true)) {
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
-            std::cout << "¸ÂÃã¹ıÀÌ ¸Â¾Ò½À´Ï´Ù." << std::endl;
+            std::cout << "ë§ì¶¤ë²•ì´ ë§ì•˜ìŠµë‹ˆë‹¤." << std::endl;
         }
         else {
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 12);
-            std::cout << "¸ÂÃã¹ıÀÌ Æ²·È½À´Ï´Ù." << std::endl;
+            std::cout << "ë§ì¶¤ë²•ì´ í‹€ë ¸ìŠµë‹ˆë‹¤." << std::endl;
         }
         SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
         simple_str.clear();
@@ -246,11 +246,11 @@ auto main(void) ->int {
         std::cout << ocr_texts << std::endl;
         if (check_matchumrule(ocr_texts, true)) {
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 10);
-            std::cout << "¸ÂÃã¹ıÀÌ ¸Â¾Ò½À´Ï´Ù." << std::endl;
+            std::cout << "ë§ì¶¤ë²•ì´ ë§ì•˜ìŠµë‹ˆë‹¤." << std::endl;
         }
         else {
             SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 12);
-            std::cout << "¸ÂÃã¹ıÀÌ Æ²·È½À´Ï´Ù." << std::endl;
+            std::cout << "ë§ì¶¤ë²•ì´ í‹€ë ¸ìŠµë‹ˆë‹¤." << std::endl;
         }
         SetConsoleTextAttribute(GetStdHandle(STD_OUTPUT_HANDLE), 15);
     }
