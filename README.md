@@ -1,5 +1,5 @@
 # OCR-Grammer-Korean
- OCR 문자읽기 + 한국어 맞춤법 테스트
+ .png 사진 또는 화면등을 OCR 라이브러리 ( 테서랙트, 클로바OCR ) 를 통해 문자를 읽고 해당 한국어의 맞춤법 테스트를 진행합니다
  
 ### 사용 영상
 ![Honeycam 2023-01-10 01-46-32](https://user-images.githubusercontent.com/13113619/211362347-5887e14a-4579-4e33-9d3b-ce8770af6bf6.gif)
