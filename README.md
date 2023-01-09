@@ -2,7 +2,7 @@
  OCR 문자읽기 + 한국어 맞춤법 테스트
 
 ### 사용된 라이브러리 목록
--opencv_world348.lib
+-opencv_world348.lib\n
 -opencv_world348d.lib
 -cpr.lib
 -Crypt32.lib
