@@ -2,61 +2,61 @@
  OCR 문자읽기 + 한국어 맞춤법 테스트
 
 ### 사용된 라이브러리 목록
--opencv_world348.lib
+opencv_world348.lib
 
--opencv_world348d.lib
+opencv_world348d.lib
 
--cpr.lib
+cpr.lib
 
--Crypt32.lib
+Crypt32.lib
 
--tesseract52.lib
+tesseract52.lib
 
--archive.lib
+archive.lib
 
--bz2.lib
+bz2.lib
 
--charset.lib
+charset.lib
 
--gif.lib
+gif.lib
 
--iconv.lib
+iconv.lib
 
--jpeg.lib
+jpeg.lib
 
--leptonica-1.82.0.lib
+leptonica-1.82.0.lib
 
--libcrypto.lib
+libcrypto.lib
 
--libcurl.lib
+libcurl.lib
 
--libpng16.lib
+libpng16.lib
 
--libssl.lib
+libssl.lib
 
--libxml2.lib
+libxml2.lib
 
--lz4.lib
+lz4.lib
 
--lzma.lib
+lzma.lib
 
--openjp2.lib
+openjp2.lib
 
--tiff.lib
+tiff.lib
 
--turbojpeg.lib
+turbojpeg.lib
 
--webp.lib
+webp.lib
 
--webpdecoder.lib
+webpdecoder.lib
 
--webpdemux.lib
+webpdemux.lib
 
--webpmux.lib
+webpmux.lib
 
--zlib.lib
+zlib.lib
 
--zstd.lib
+zstd.lib
 
 ### 사용된 REST API 목록
 클로바 OCR
